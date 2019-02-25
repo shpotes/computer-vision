@@ -25,7 +25,7 @@ def affine_forward(x, w, b):
     x = x.reshape(N, D)
 
     out = x @ w + b 
-    cache = (x, w, b)
+    cache = (x.reshape(N, *d), w, b)
     return out, cache
 
 
@@ -46,14 +46,13 @@ def affine_backward(dout, cache):
     - db: Gradient with respect to b, of shape (M,)
     """
     x, w, b = cache
-    dx, dw, db = None, None, None
-    ###########################################################################
-    # TODO: Implement the affine backward pass.                               #
-    ###########################################################################
-    pass
-    ###########################################################################
-    #                             END OF YOUR CODE                            #
-    ###########################################################################
+    N, *d = x.shape
+    D, M = w.shape
+
+    dx = (dout @ w.T).reshape((N, *d))
+    dw = x.reshape(N, D).T @ dout
+    db = dout.sum(axis=0)
+    
     return dx, dw, db
 
 
@@ -68,14 +67,7 @@ def relu_forward(x):
     - out: Output, of the same shape as x
     - cache: x
     """
-    out = None
-    ###########################################################################
-    # TODO: Implement the ReLU forward pass.                                  #
-    ###########################################################################
-    pass
-    ###########################################################################
-    #                             END OF YOUR CODE                            #
-    ###########################################################################
+    out = np.maximum(x, 0)
     cache = x
     return out, cache
 
@@ -91,14 +83,7 @@ def relu_backward(dout, cache):
     Returns:
     - dx: Gradient with respect to x
     """
-    dx, x = None, cache
-    ###########################################################################
-    # TODO: Implement the ReLU backward pass.                                 #
-    ###########################################################################
-    pass
-    ###########################################################################
-    #                             END OF YOUR CODE                            #
-    ###########################################################################
+    dx, x = dout * (cache > 0), cache
     return dx
 
 
