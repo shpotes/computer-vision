@@ -135,10 +135,12 @@ def batchnorm_forward(x, gamma, beta, bn_param):
 
     if mode == 'train':
         batch_mean = x.mean(axis=0)
-        batch_std = x.std(axis=0)
+        var = x.var(axis=0)
+        batch_std = np.sqrt(var + eps)
 
         out = gamma * (x - batch_mean) / batch_std + beta
-        cache = x, gamma, beta, batch_mean, batch_std
+        
+        cache = x, gamma, beta, batch_mean, var, eps
 
         running_mean = momentum * running_mean + (1 - momentum) * batch_mean
         running_var = momentum * running_var + (1 - momentum) * batch_std
@@ -178,19 +180,19 @@ def batchnorm_backward(dout, cache):
     - dx: Gradient with respect to inputs x, of shape (N, D)
     - dgamma: Gradient with respect to scale parameter gamma, of shape (D,)
     - dbeta: Gradient with respect to shift parameter beta, of shape (D,)
+    
+    See https://arxiv.org/pdf/1502.03167.pdf page 4
     """
-    dx, dgamma, dbeta = None, None, None
-    ###########################################################################
-    # TODO: Implement the backward pass for batch normalization. Store the    #
-    # results in the dx, dgamma, and dbeta variables.                         #
-    # Referencing the original paper (https://arxiv.org/abs/1502.03167)       #
-    # might prove to be helpful.                                              #
-    ###########################################################################
-    pass
-    ###########################################################################
-    #                             END OF YOUR CODE                            #
-    ###########################################################################
+    N, D = dout.shape
+    x, gamma, beta, mu, var, eps = cache
 
+    dhat = dout * gamma
+    dsigma = np.sum(dhat * (x - mu), axis=0) * -1/2 * (var + eps) ** (- 3 / 2)
+    dmu = np.sum(dhat, axis=0) * (- 1 / np.sqrt(var + eps))
+    dmu += dsigma * np.sum(-2 * (x - mu), axis=0) / N
+    dx = dhat * 1/np.sqrt(var + eps) + dsigma * 2 *  (x - mu)/N + dmu / N 
+    dgamma = np.sum(dout * (x - mu)/np.sqrt(var + eps), axis=0)
+    dbeta = np.sum(dout, axis=0)
     return dx, dgamma, dbeta
 
 
