@@ -147,19 +147,18 @@ def batchnorm_forward(x, gamma, beta, bn_param):
 
         bn_param['running_mean'] = running_mean
         bn_param['running_var'] = running_var
+        
+        cache = x, gamma, beta, batch_mean, var, eps, bn_param
+
 
     elif mode == 'test':
         out = gamma * (x - running_mean)/running_var
         out += beta
 
-        cache = x, gamma, beta, running_mean, running_var
+        cache = x, gamma, beta
 
     else:
         raise ValueError('Invalid forward batchnorm mode "%s"' % mode)
-
-    # Store the updated running means back into bn_param
-    bn_param['running_mean'] = running_mean
-    bn_param['running_var'] = running_var
 
     return out, cache
 
@@ -184,7 +183,7 @@ def batchnorm_backward(dout, cache):
     See https://arxiv.org/pdf/1502.03167.pdf page 4
     """
     N, D = dout.shape
-    x, gamma, beta, mu, var, eps = cache
+    x, gamma, beta, mu, var, eps, bn_param = cache
 
     dhat = dout * gamma
     dsigma = np.sum(dhat * (x - mu), axis=0) * -1/2 * (var + eps) ** (- 3 / 2)
@@ -249,22 +248,16 @@ def layernorm_forward(x, gamma, beta, ln_param):
     - out: of shape (N, D)
     - cache: A tuple of values needed in the backward pass
     """
-    out, cache = None, None
     eps = ln_param.get('eps', 1e-5)
-    ###########################################################################
-    # TODO: Implement the training-time forward pass for layer norm.          #
-    # Normalize the incoming data, and scale and  shift the normalized data   #
-    #  using gamma and beta.                                                  #
-    # HINT: this can be done by slightly modifying your training-time         #
-    # implementation of  batch normalization, and inserting a line or two of  #
-    # well-placed code. In particular, can you think of any matrix            #
-    # transformations you could perform, that would enable you to copy over   #
-    # the batch norm code and leave it almost unchanged?                      #
-    ###########################################################################
-    pass
-    ###########################################################################
-    #                             END OF YOUR CODE                            #
-    ###########################################################################
+    
+    ft_mean = x.mean(axis=1)
+    ft_var = x.var(axis=1)
+    ft_std = np.sqrt(ft_var + eps)
+
+    out = ((gamma * (x.T - ft_mean).T).T / ft_std).T + beta
+
+    cache = x, gamma, beta, ft_mean, ft_var, eps
+
     return out, cache
 
 
@@ -284,20 +277,18 @@ def layernorm_backward(dout, cache):
     - dgamma: Gradient with respect to scale parameter gamma, of shape (D,)
     - dbeta: Gradient with respect to shift parameter beta, of shape (D,)
     """
-    dx, dgamma, dbeta = None, None, None
-    ###########################################################################
-    # TODO: Implement the backward pass for layer norm.                       #
-    #                                                                         #
-    # HINT: this can be done by slightly modifying your training-time         #
-    # implementation of batch normalization. The hints to the forward pass    #
-    # still apply!                                                            #
-    ###########################################################################
-    pass
-    ###########################################################################
-    #                             END OF YOUR CODE                            #
-    ###########################################################################
-    return dx, dgamma, dbeta
+    
+    N, D = dout.shape
+    x, gamma, beta, mu, var, eps = cache
 
+    dhat = dout * gamma # 4, 5
+    dsigma = np.sum(dhat * (x.T - mu).T, axis=1) * -1/2 * (var + eps) ** (- 3 / 2) 
+    dmu = np.sum(dhat, axis=1) * (- 1 / np.sqrt(var + eps)) + dsigma * np.sum(-2 * (x.T - mu).T, axis=1) / D
+    dx = dhat.T* 1/np.sqrt(var + eps) + dsigma * 2 *  (x.T - mu)/D + dmu / D
+    dgamma = np.sum(dout * ((x.T - mu)/np.sqrt(var + eps)).T, axis=0)
+    dbeta = np.sum(dout, axis=0)
+
+    return dx.T, dgamma, dbeta
 
 def dropout_forward(x, dropout_param):
     """

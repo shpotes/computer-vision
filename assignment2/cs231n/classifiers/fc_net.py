@@ -133,13 +133,6 @@ class FullyConnectedNet(object):
         self.dtype = dtype
         self.params = {}
 
-        ############################################################################
-        # When using batch normalization, store scale and shift parameters for the #
-        # first layer in gamma1 and beta1; for the second layer use gamma2 and     #
-        # beta2, etc. Scale parameters should be initialized to ones and shift     #
-        # parameters should be initialized to zeros.                               #
-        ############################################################################
-        
         dims = [input_dim] + hidden_dims + [num_classes] 
 
         for i in range(1, len(dims)):
@@ -147,10 +140,9 @@ class FullyConnectedNet(object):
                                                                   dims[i]),
                                                           scale=weight_scale)
             self.params['b%d' % i] = np.zeros(dims[i])
-
-        ############################################################################
-        #                             END OF YOUR CODE                             #
-        ############################################################################
+            if self.normalization and i != len(dims) - 1: # last layer no bn parameters
+                self.params['gamma%d' % i] = np.ones(dims[i])
+                self.params['beta%d' % i] = np.zeros(dims[i])
 
         # When using dropout we need to pass a dropout_param dictionary to each
         # dropout layer so that the layer knows the dropout probability and the mode
@@ -161,16 +153,14 @@ class FullyConnectedNet(object):
             if seed is not None:
                 self.dropout_param['seed'] = seed
 
-        # With batch normalization we need to keep track of running means and
-        # variances, so we need to pass a special bn_param object to each batch
-        # normalization layer. You should pass self.bn_params[0] to the forward pass
-        # of the first batch normalization layer, self.bn_params[1] to the forward
-        # pass of the second batch normalization layer, etc.
         self.bn_params = []
         if self.normalization=='batchnorm':
-            self.bn_params = [{'mode': 'train'} for i in range(self.num_layers - 1)]
+            self.bn_params = [{'mode': 'train',
+                               'running_mean': 0, 'running_var': 1} \
+                              for i in range(self.num_layers - 1)]
         if self.normalization=='layernorm':
-            self.bn_params = [{} for i in range(self.num_layers - 1)]
+            self.ln_params = [{'running_mean': 0, 'running_var': 1} \
+                              for i in range(self.num_layers - 1)]
 
         # Cast all parameters to the correct datatype
         for k, v in self.params.items():
@@ -198,46 +188,44 @@ class FullyConnectedNet(object):
         ############################################################################
         # When using dropout, you'll need to pass self.dropout_param to each       #
         # dropout forward pass.                                                    #
-        #                                                                          #
-        # When using batch normalization, you'll need to pass self.bn_params[0] to #
-        # the forward pass for the first batch normalization layer, pass           #
-        # self.bn_params[1] to the forward pass for the second batch normalization #
-        # layer, etc.                                                              #
         ############################################################################
         h = X
-        c = []
+        c = []; cn = []
 
         for i in range(1, self.num_layers):
             h, c_tmp = affine_relu_forward(h, self.params['W%d' % i],
                                            self.params['b%d' % i])
+            if self.normalization=='batchnorm': 
+                h, cn_tmp = batchnorm_forward(h, self.params['gamma%i' % i],
+                                              self.params['beta%i' % i],
+                                              self.bn_params[i-1])
+                cn.append(cn_tmp)
+
+            if self.normalization=='layernorm':
+                h, cn_tmp = layernorm_forward(h, self.params['gamma%i' % i],
+                                              self.params['beta%i' % i],
+                                              self.ln_params[i-1])
+                cn.append(cn_tmp)
+
             c.append(c_tmp)
-        
+
         scores, c_tmp = affine_forward(h, self.params['W%d' % self.num_layers],
                                        self.params['b%d' % self.num_layers])
         c.append(c_tmp)
         
-        ############################################################################
-        #                             END OF YOUR CODE                             #
-        ############################################################################
 
         # If test mode return early
         if mode == 'test':
-            return scores
+            return  scores
 
-
-        ############################################################################
-        # When using batch/layer normalization, you don't need to regularize the   #
-        # scale and shift parameters.                                              #
-        #                                                                          #
-        # NOTE: To ensure that your implementation matches ours and you pass the   #
-        # automated tests, make sure that your L2 regularization includes a factor #
-        # of 0.5 to simplify the expression for the gradient.                      #
-        ############################################################################
         
         loss, dx = softmax_loss(scores, y)
 
         for i in range(1, self.num_layers + 1):
             loss += self.reg / 2 * (self.params['W%d' % i]**2).sum()
+
+
+        # Backprop
 
         grads = {}
 
@@ -248,12 +236,16 @@ class FullyConnectedNet(object):
             self.reg * self.params['W%d' % self.num_layers]
 
         for i in range(self.num_layers - 1, 0, -1):
+            if self.normalization=='batchnorm':
+                dx, grads['gamma%d' % i], grads['beta%d' % i] = \
+                    batchnorm_backward(dx, cn[i-1])
+
+            if self.normalization=='layernorm':
+                dx, grads['gamma%d' % i], grads['beta%d' % i] = \
+                    layernorm_backward(dx, cn[i-1])
+
             dx, grads['W%d' % i], grads['b%d' % i] = affine_relu_backward(dx,
                                                                           c[i-1])
             grads['W%d' % i] += self.reg * self.params['W%d' % i]
-
-        ############################################################################
-        #                             END OF YOUR CODE                             #
-        ############################################################################
 
         return loss, grads
