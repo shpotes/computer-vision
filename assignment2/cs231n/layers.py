@@ -308,13 +308,6 @@ def dropout_forward(x, dropout_param):
     - out: Array of the same shape as x.
     - cache: tuple (dropout_param, mask). In training mode, mask is the dropout
       mask that was used to multiply the input; in test mode, mask is None.
-
-    NOTE: Please implement **inverted** dropout, not the vanilla version of dropout.
-    See http://cs231n.github.io/neural-networks-2/#reg for more details.
-
-    NOTE 2: Keep in mind that p is the probability of **keep** a neuron
-    output; this might be contrary to some sources, where it is referred to
-    as the probability of dropping a neuron output.
     """
     p, mode = dropout_param['p'], dropout_param['mode']
     if 'seed' in dropout_param:
@@ -324,22 +317,11 @@ def dropout_forward(x, dropout_param):
     out = None
 
     if mode == 'train':
-        #######################################################################
-        # TODO: Implement training phase forward pass for inverted dropout.   #
-        # Store the dropout mask in the mask variable.                        #
-        #######################################################################
-        pass
-        #######################################################################
-        #                           END OF YOUR CODE                          #
-        #######################################################################
+        mask = (np.random.rand(*x.shape) < p) / p
+        out = x * mask
+
     elif mode == 'test':
-        #######################################################################
-        # TODO: Implement the test phase forward pass for inverted dropout.   #
-        #######################################################################
-        pass
-        #######################################################################
-        #                            END OF YOUR CODE                         #
-        #######################################################################
+        out = x
 
     cache = (dropout_param, mask)
     out = out.astype(x.dtype, copy=False)
@@ -360,13 +342,7 @@ def dropout_backward(dout, cache):
 
     dx = None
     if mode == 'train':
-        #######################################################################
-        # TODO: Implement training phase backward pass for inverted dropout   #
-        #######################################################################
-        pass
-        #######################################################################
-        #                          END OF YOUR CODE                           #
-        #######################################################################
+        dx = mask * dout
     elif mode == 'test':
         dx = dout
     return dx

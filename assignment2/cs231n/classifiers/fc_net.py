@@ -144,9 +144,6 @@ class FullyConnectedNet(object):
                 self.params['gamma%d' % i] = np.ones(dims[i])
                 self.params['beta%d' % i] = np.zeros(dims[i])
 
-        # When using dropout we need to pass a dropout_param dictionary to each
-        # dropout layer so that the layer knows the dropout probability and the mode
-        # (train / test). You can pass the same dropout_param to each dropout layer.
         self.dropout_param = {}
         if self.use_dropout:
             self.dropout_param = {'mode': 'train', 'p': dropout}
@@ -191,6 +188,7 @@ class FullyConnectedNet(object):
         ############################################################################
         h = X
         c = []; cn = []
+        d = []
 
         for i in range(1, self.num_layers):
             h, c_tmp = affine_relu_forward(h, self.params['W%d' % i],
@@ -206,6 +204,10 @@ class FullyConnectedNet(object):
                                               self.params['beta%i' % i],
                                               self.ln_params[i-1])
                 cn.append(cn_tmp)
+            
+            if self.use_dropout:
+                h, d_tmp = dropout_forward(h, self.dropout_param)
+                d.append(d_tmp)
 
             c.append(c_tmp)
 
@@ -236,6 +238,9 @@ class FullyConnectedNet(object):
             self.reg * self.params['W%d' % self.num_layers]
 
         for i in range(self.num_layers - 1, 0, -1):
+            if self.use_dropout:
+                dx = dropout_backward(dx, d[i-1])
+
             if self.normalization=='batchnorm':
                 dx, grads['gamma%d' % i], grads['beta%d' % i] = \
                     batchnorm_backward(dx, cn[i-1])
