@@ -409,16 +409,31 @@ def conv_forward_naive(x, w, b, conv_param):
       W' = 1 + (W + 2 * pad - WW) / stride
     - cache: (x, w, b, conv_param)
     """
-    out = None
-    ###########################################################################
-    # TODO: Implement the convolutional forward pass.                         #
-    # Hint: you can use the function np.pad for padding.                      #
-    ###########################################################################
-    pass
-    ###########################################################################
-    #                             END OF YOUR CODE                            #
-    ###########################################################################
-    cache = (x, w, b, conv_param)
+    pad, stride = conv_param['pad'], conv_param['stride']
+    x_old = x.copy()
+    x = np.pad(x, pad, 'constant')[pad:-pad,pad:-pad,:,:]
+    #print(x.shape)
+    N, C, H, W = x.shape
+    F, C, HH, WW = w.shape
+    H_p = 1 + (H - HH) // stride
+    W_p = 1 + (W - WW) // stride
+    B = b
+
+    out = np.zeros((N, F, H_p, W_p))
+
+    for f in range(F):
+        a = 0; c = HH; 
+        for i in range(H_p):
+            b = 0; d = WW;
+            for j in range(W_p):
+                tmp = x[:,:,a:c,b:d] * w[f,:,:,:].reshape(1, C, HH, WW) 
+                out[:,f,i,j] = tmp.sum(axis=(1,2,3)) + B[f]
+                b += stride; d += stride
+            a += stride; c += stride
+            
+                
+
+    cache = (x_old, w, B, conv_param)
     return out, cache
 
 
@@ -435,14 +450,31 @@ def conv_backward_naive(dout, cache):
     - dw: Gradient with respect to w
     - db: Gradient with respect to b
     """
-    dx, dw, db = None, None, None
-    ###########################################################################
-    # TODO: Implement the convolutional backward pass.                        #
-    ###########################################################################
-    pass
-    ###########################################################################
-    #                             END OF YOUR CODE                            #
-    ###########################################################################
+
+    x, w, B, conv_param = cache
+    pad, stride = conv_param['pad'], conv_param['stride']
+    N, C, H, W = x.shape
+    F, C, HH, WW = w.shape
+    H_p = 1 + (H - HH) // stride
+    W_p = 1 + (W - WW) // stride
+
+    db = dout.sum(axis=(0,2,3))
+    dx = np.zeros(x.shape)
+    dw = np.zeros(w.shape)
+
+    print(w.shape)
+    for f in range(F):
+        a = 0; c = HH; 
+        for i in range(H_p):
+            b = 0; d = WW;
+            for j in range(W_p):
+                dw[f,:,:,:] = dout[:,f,i,j].sum() * x[:,:,a:c,b:d].sum(axis=(0,2,3))
+                #dx[:,:,a:c,b:d] = dout[:,f,i,j].sum(axis=(1,2,3)) * w[f,:,:,:].sum()
+                # * w[f,:,:,:].reshape(1, C, HH, WW) 
+                #dw[f,i,j] = tmp_w.sum() #+ B[f]
+                b += stride; d += stride
+            a += stride; c += stride
+    print(dw)
     return dx, dw, db
 
 
