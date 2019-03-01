@@ -495,7 +495,24 @@ def max_pool_backward_naive(dout, cache):
     Returns:
     - dx: Gradient with respect to x
     """
+    x, pool_param = cache
     
+    WW, HH, stride = pool_param['pool_width'], pool_param['pool_height'], pool_param['stride']
+    N, C, H, W = x.shape
+    H_p = 1 + (H - HH) // stride
+    W_p = 1 + (W - WW) // stride
+
+    dx = np.zeros(x.shape)
+    a = 0; c = HH; 
+    for i in range(H_p):
+        b = 0; d = WW;
+        for j in range(W_p):
+            #out[:,:,i,j] = x[:,:,a:c,b:d].max(axis=(2,3))
+            maxi = x[:,:,a:c,b:d].max(axis=(2,3))
+            mask = np.equal(x[:,:,a:c,b:d].T, maxi.T)
+            dx[:,:,a:c,b:d][mask.T] += dout[:,:,i,j].flatten()
+            b += stride; d += stride
+        a += stride; c += stride
     return dx
 
 
