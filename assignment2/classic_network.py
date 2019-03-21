@@ -1,120 +1,124 @@
 import tensorflow as tf
 
 def LeNet_5(x):
-    w1 = tf.Variable(tf.truncated_normal([5, 5, 1, 6], stddev=0.05))
-    w1s = tf.Variable(tf.constant(1.0, shape=[6]))
-    w2 = tf.Variable(tf.truncated_normal([5, 5, 6, 16], stddev=0.05))
-    w2s = tf.Variable(tf.constant(1.0, shape=[16]))
-    w3 = tf.Variable(tf.truncated_normal([5, 5, 16, 120], stddev=0.05))
-    w4 = tf.Variable(tf.truncated_normal([120, 84], stddev=0.05))
-    w5 = tf.Variable(tf.truncated_normal([1, 10, 84], stddev=0.05))
+    params = {}
+    params['w1'] = tf.Variable(tf.truncated_normal([5, 5, 1, 6], stddev=0.1))
+    params['w1s'] = tf.Variable(tf.constant(1.0, shape=[6]))
+    params['w2'] = tf.Variable(tf.truncated_normal([5, 5, 6, 16], stddev=0.1))
+    params['w2s'] = tf.Variable(tf.constant(1.0, shape=[16]))
+    params['w3'] = tf.Variable(tf.truncated_normal([5, 5, 16, 120], stddev=0.1))
+    params['w4'] = tf.Variable(tf.truncated_normal([120, 84], stddev=0.1))
+    params['w5'] = tf.Variable(tf.truncated_normal([84, 10], stddev=0.1))
 
-    b1 = tf.Variable(tf.constant(0.0, shape=[6]))
-    b1s = tf.Variable(tf.constant(0.0, shape=[6]))
-    b2 = tf.Variable(tf.constant(0.0, shape=[16]))
-    b2s = tf.Variable(tf.constant(0.0, shape=[16]))
-    b3 = tf.Variable(tf.zeros(120))
-    b4 = tf.Variable(tf.zeros(84))
-
+    params['b1'] = tf.Variable(tf.constant(0.0, shape=[6]))
+    params['b1s'] = tf.Variable(tf.constant(0.0, shape=[6]))
+    params['b2'] = tf.Variable(tf.constant(0.0, shape=[16]))
+    params['b2s'] = tf.Variable(tf.constant(0.0, shape=[16]))
+    params['b3'] = tf.Variable(tf.zeros(120))
+    params['b4'] = tf.Variable(tf.zeros(84))
+    params['b5'] = tf.Variable(tf.zeros(10))
+    
     A = tf.constant(1.7159)
+    S = tf.constant(2/3)
 
-    C1 = tf.nn.conv2d(input=x, filter=w1,
+    C1 = tf.nn.conv2d(input=x, filter=params['w1'],
                       strides=[1, 1, 1, 1], padding='VALID')
-    C1 += b1
+    C1 += params['b1']
 
     S2 = tf.nn.avg_pool(value=C1, ksize=[1, 2, 2, 1],
                     strides=[1, 2, 2, 1], padding='VALID')
-    S2 = tf.multiply(w1s, S2) + b1s
+    S2 = tf.multiply(params['w1s'], S2) + params['b1s']
     S2 = tf.nn.sigmoid(S2)
 
     # TODO: How to implement Partially connection (like lecun paper)??
-    C3 = tf.nn.conv2d(input=S2, filter=w2,
+    C3 = tf.nn.conv2d(input=S2, filter=params['w2'],
                   strides=[1, 1, 1, 1], padding='VALID')
-    C3 += b2
+    C3 += params['b2']
 
     S4 = tf.nn.avg_pool(value=C3, ksize=[1, 2, 2, 1],
                         strides=[1, 2, 2, 1], padding='VALID')
-    S4 = tf.multiply(w2s, S4) + b2s
+    S4 = tf.multiply(params['w2s'], S4) + params['b2s']
     S4 = tf.nn.sigmoid(S4)
 
-    C5 = tf.nn.conv2d(input=S4, filter=w3,
+    C5 = tf.nn.conv2d(input=S4, filter=params['w3'],
                   strides=[1, 1, 1, 1], padding='VALID')
 
     C5 = tf.reshape(C5, [-1, 120])
 
-    F6 = tf.matmul(C5, w4) + b4
-    F6 = A * tf.nn.tanh(F6) # TODO: Review S
+    F6 = tf.matmul(C5, params['w4']) + params['b4']
+    F6 = A * tf.nn.tanh(S * F6) # TODO: Review S
 
-    F6 = tf.reshape(F6, [-1, 1, 84])
-    scores = tf.reduce_sum(tf.square(F6 - w5), axis=2)
-
-    return scores
+    logits = tf.matmul(F6, params['w5']) + params['b5']
+    return logits, params
 
 
 def AlexNet(x):
-    w1 = tf.Variable(tf.truncated_normal([11, 11, 3, 96], stddev=0.05))
-    w2 = tf.Variable(tf.truncated_normal([5, 5, 96, 256], stddev=0.05))
-    w3 = tf.Variable(tf.truncated_normal([3, 3, 256, 384], stddev=0.05))
-    w4 = tf.Variable(tf.truncated_normal([3, 3, 384, 384], stddev=0.05))
-    w5 = tf.Variable(tf.truncated_normal([3, 3, 384, 256], stddev=0.05))
-    w6 = tf.Variable(tf.truncated_normal([9216, 4096], stddev=0.05))
-    w7 = tf.Variable(tf.truncated_normal([4096, 4096], stddev=0.05))
-    w8 = tf.Variable(tf.truncated_normal([4096, 1000], stddev=0.05))
+    params = {}
 
-    b1 = tf.Variable(tf.zeros(96))
-    b2 = tf.Variable(tf.zeros(256))
-    b3 = tf.Variable(tf.zeros(384))
-    b4 = tf.Variable(tf.zeros(384))
-    b5 = tf.Variable(tf.zeros(256))
-    b6 = tf.Variable(tf.zeros(4096))
-    b7 = tf.Variable(tf.zeros(4096))
-    b8 = tf.Variable(tf.zeros(1000))
+    params['w1'] = tf.Variable(tf.truncated_normal([11, 11, 3, 96], stddev=0.05))
+    params['w2'] = tf.Variable(tf.truncated_normal([5, 5, 96, 256], stddev=0.05))
+    params['w3'] = tf.Variable(tf.truncated_normal([3, 3, 256, 384], stddev=0.05))
+    params['w4'] = tf.Variable(tf.truncated_normal([3, 3, 384, 384], stddev=0.05))
+    params['w5'] = tf.Variable(tf.truncated_normal([3, 3, 384, 256], stddev=0.05))
+    params['w6'] = tf.Variable(tf.truncated_normal([9216, 4096], stddev=0.05))
+    params['w7'] = tf.Variable(tf.truncated_normal([4096, 4096], stddev=0.05))
+    params['w8'] = tf.Variable(tf.truncated_normal([4096, 1000], stddev=0.05))
 
-    C1 = tf.nn.conv2d(input=x, filter=w1,
+    params['b1'] = tf.Variable(tf.zeros(96))
+    params['b2'] = tf.Variable(tf.zeros(256))
+    params['b3'] = tf.Variable(tf.zeros(384))
+    params['b4'] = tf.Variable(tf.zeros(384))
+    params['b5'] = tf.Variable(tf.zeros(256))
+    params['b6'] = tf.Variable(tf.zeros(4096))
+    params['b7'] = tf.Variable(tf.zeros(4096))
+    params['b8'] = tf.Variable(tf.zeros(1000))
+
+    C1 = tf.nn.conv2d(input=x, filter=params['w1'],
                       strides=[1, 4, 4, 1], padding='VALID')
-    C1 += b1
+    C1 += params['b1']
     C1 = tf.nn.relu(C1)
 
     S2 = tf.nn.max_pool(C1, ksize=[1, 3, 3, 1],
                         strides=[1, 2, 2, 1], padding='VALID')
 
-    C3 = tf.nn.conv2d(input=S2, filter=w2,
+    C3 = tf.nn.conv2d(input=S2, filter=params['w2'],
                       strides=[1,1,1,1], padding='SAME')
-    C3 += b2
+    C3 += params['b2']
     C3 = tf.nn.relu(C3)
 
     S4 = tf.nn.max_pool(C3, ksize=[1, 3, 3, 1],
                         strides=[1, 2, 2, 1], padding='VALID')
 
-    C5 = tf.nn.conv2d(input=S4, filter=w3,
+    C5 = tf.nn.conv2d(input=S4, filter=params['w3'],
                       strides=[1, 1, 1, 1], padding='SAME')
-    C5 += b3
+    C5 += params['b3']
     C5 = tf.nn.relu(C5)
 
-    C6 = tf.nn.conv2d(input=C5, filter=w4,
+    C6 = tf.nn.conv2d(input=C5, filter=params['w4'],
                       strides=[1, 1, 1, 1], padding='SAME')
-    C6 += b4
+    C6 += params['b4']
     C6 = tf.nn.relu(C6)
 
-    C7 = tf.nn.conv2d(input=C5, filter=w5,
+    C7 = tf.nn.conv2d(input=C5, filter=params['w5'],
                       strides=[1, 1, 1, 1], padding='SAME')
-    C7 += b5
+    C7 += params['b5']
     C7 = tf.nn.relu(C7)
 
     S8 = tf.nn.max_pool(C7, ksize=[1, 3, 3, 1],
                         strides=[1, 2, 2, 1], padding='VALID')
     F8 = tf.reshape(S8, [-1, 9216])
 
-    F9 = tf.matmul(F8, w6) + b6
+    F9 = tf.matmul(F8, params['w6']) + params['b6']
     F9 = tf.nn.relu(F9)
     F9 = tf.nn.dropout(F9, keep_prob=0.5)
 
-    F10 = tf.matmul(F9, w7) + b7
+    F10 = tf.matmul(F9, params['w7']) + params['b7']
     F10 = tf.nn.relu(F10)
     F10 = tf.nn.dropout(F10, keep_prob=0.5)
 
-    logits = tf.matmul(F10, w8) + b8
-    return logits
+    logits = tf.matmul(F10, params['w8']) + params['b8']
+
+    return logits, params
 
 def VGG16(x):
     def CONV(x, out_ch):

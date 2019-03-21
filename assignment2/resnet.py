@@ -11,15 +11,15 @@ def ResBlock(a0, bottleneck=False, plain=False):
         ch0 = int(a0.shape[-1])
         ch = 2 * int(a0.shape[-1])
         st1 = [1, 2, 2, 1]
-        ws = tf.Variable(tf.truncated_normal([1, 1, ch0, ch], stddev=0.05))
+        ws = tf.Variable(tf.truncated_normal([1, 1, ch0, ch], stddev=tf.sqrt(2/ch0)))
         bs = tf.Variable(tf.zeros(ch))
         a0T = tf.nn.conv2d(input=a0, filter=ws, strides=[1, 2, 2, 1], padding='SAME') + bs
         a0T = tf.nn.relu(tf.layers.batch_normalization(a0T))
     if plain:
         a0T = 0
 
-    w1 = tf.Variable(tf.truncated_normal([3, 3, ch0, ch], stddev=0.05))
-    w2 = tf.Variable(tf.truncated_normal([3, 3, ch, ch], stddev=0.05))
+    w1 = tf.Variable(tf.truncated_normal([3, 3, ch0, ch], stddev=tf.sqrt(2/(9 * ch0))))
+    w2 = tf.Variable(tf.truncated_normal([3, 3, ch, ch], stddev=tf.sqrt(2/(9 * ch0))))
     b1 = tf.Variable(tf.zeros(ch))
     b2 = tf.Variable(tf.zeros(ch))
     
@@ -34,8 +34,8 @@ def ResBlock(a0, bottleneck=False, plain=False):
     return a2
 
 def ResNet(x, num_classes=1000):
-    w1 = tf.Variable(tf.truncated_normal([7, 7, 3, 64], stddev=0.05))
-    w2 = tf.Variable(tf.truncated_normal([3 * 3 * 512, num_classes]))
+    w1 = tf.Variable(tf.truncated_normal([7, 7, 3, 64], stddev=tf.sqrt(2/(7 * 7 * 3))))
+    w2 = tf.Variable(tf.truncated_normal([3 * 3 * 512, num_classes], stddev=tf.sqrt(2/(3 * 3 * 512))))
     b1 = tf.Variable(tf.zeros(64))
     b2 = tf.Variable(tf.zeros(1000))
     
